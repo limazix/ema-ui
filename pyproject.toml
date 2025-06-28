@@ -28,17 +28,7 @@ dev = [
 _.env_file = ".env"
 pre_commit = "git add -i"
 commit = "cz commit"
-serve = "chainlit run src/app.py"
-
-[tool.commitizen]
-version = "0.1.0"
-update_changelog_on_bump = true
-annotated_tag = true
-version_files = [
-    "src/__version__.py",
-]
-changelog_incremental = true
-
+serve = "chainlit run src/app.py -w"
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
@@ -122,3 +112,4 @@ docstring-code-format = false
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
+
