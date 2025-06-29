@@ -20,8 +20,8 @@ class Logger:
 
     def _configure_logger(self):
         config_handler = ConfigHandler()  # Assuming ConfigHandler is initialized elsewhere or handles its own instance
-        log_level = config_handler.get("logging", "level", default="INFO").upper()
-        log_format = config_handler.get("logging", "format", default="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        log_level = config_handler.get_config("logging", "level", default="INFO").upper()
+        log_format = config_handler.get_config("logging", "format", default="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
         level = getattr(logging, log_level, logging.INFO)
         self._logger.setLevel(level)

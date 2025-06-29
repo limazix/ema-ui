@@ -10,6 +10,14 @@ class ConfigHandler:
             cls._instance = super(ConfigHandler, cls).__new__(cls)
         return cls._instance
 
+    def _build_config_path(self, relative_path: str) -> str:
+        """
+        Builds the absolute path for a configuration file given a relative path
+        from the location of this config_handler.py file.
+        """
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(base_dir, relative_path)
+
     def load_config(self, module_name, config_path):
         """
         Loads configuration from a YAML file for a specific module.
@@ -18,12 +26,13 @@ class ConfigHandler:
             module_name (str): The name of the module.
             config_path (str): The path to the configuration file.
         """
-        if not os.path.exists(config_path):
-            print(f"Warning: Config file not found for module '{module_name}' at '{config_path}'")
+        absolute_config_path = self._build_config_path(config_path)
+        if not os.path.exists(absolute_config_path):
+            print(f"Warning: Config file not found for module '{module_name}' at '{absolute_config_path}'")
             self._configs[module_name] = {}
             return
 
-        with open(config_path, 'r') as f:
+        with open(absolute_config_path, 'r') as f:
             try:
                 config_data = yaml.safe_load(f)
                 self._configs[module_name] = config_data if config_data is not None else {}

@@ -1,0 +1,12 @@
+# Configuration for the Data Analyst Agent
+
+# Language model settings
+model: gemini-1.5-flash-latest
+temperature: 0.0
+
+# Add other Data Analyst specific configurations here
+# For example:
+# analysis_parameters:
+#   - frequency
+#   - voltage
+# output_format: json

@@ -1,28 +1,28 @@
-import operator
-from typing import Annotated, Sequence, TypedDict
-
-from langchain_core.messages import BaseMessage
+from typing import Dict, Any, Annotated, Sequence, TypedDict
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
+import chainlit as cl
+
+from app.agents.base_agent import BaseAgent
+from .compliance_agent_models import ComplianceReportInput, AnalyzeComplianceReportOutput
 
 
-from langgraph.graph import StateGraph
+class ComplianceAgent(BaseAgent):
+    def __init__(self):
+        super().__init__()
+        # Load agent-specific config here
+        self.config.load_config("compliance_agent", "compliance_agent.yaml") # Example loading
 
-### Define the Agent State ###
-class AgentState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], operator.add]
-
-
-### Define the agents ###
-
-# Prompt template for the compliance report agent
-compliance_report_prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """Você é um especialista em engenharia elétrica e regulamentações da ANEEL, encarregado de gerar um relatório técnico de conformidade detalhado e bem estruturado.
+    def _define_prompt(self) -> ChatPromptTemplate:
+        """Define the specific prompt for the Compliance Agent."""
+        # Migrated prompt content from original app/agents.py
+        return ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """Você é um especialista em engenharia elétrica e regulamentações da ANEEL, encarregado de gerar um relatório técnico de conformidade detalhado e bem estruturado.
 O relatório DEVE ser gerado no idioma especificado por '{languageCode}' (o padrão é Português do Brasil - pt-BR - se não especificado ou se o idioma não for bem suportado para esta tarefa técnica).
 As citações diretas de nomes de resoluções, artigos da ANEEL ou textos de normas devem permanecer em Português, mesmo que o restante do relatório esteja em outro idioma.
 
@@ -58,7 +58,7 @@ Diretrizes Detalhadas para Cada Parte do Relatório (a serem geradas no idioma '
         *   `content`: Detalhe a análise dos parâmetros relevantes para esta seção, baseado no `powerQualityDataSummary`. Seja técnico, mas claro. Compare os valores observados com os limites regulatórios.
         *   `insights`: Liste os principais insights, observações ou problemas detectados nesta seção específica. Cada insight deve ser uma frase concisa.
         *   `relevantNormsCited`: Para cada insight ou problema, **explicite a norma ANEEL e o artigo/item específico em Português** que o respalda (ex: "Resolução XXX/YYYY, Art. Z, Inciso W", ou "PRODIST Módulo 8, item 3.2.1"). Seja preciso.
-        *   `chartOrImageSuggestion`: (OPCIONAL, MAS RECOMENDADO) Gere uma sugestão de diagrama visual em **sintaxe Mermaid** que poderia ilustrar os achados da seção. Ex: para um gráfico de pizza, `pie title Título do Gráfico "Seção A": 30 "Seção B": 70`; para um gráfico de barras, `xychart-beta title "Variação da Tensão" x-axis "Tempo" y-axis "Tensão (V)" bar [10, 12, 15, 11]`. **Consulte a documentação oficial do Mermaid.js em https://mermaid.js.org/intro/ para referência da sintaxe.** A sintaxe Mermaid DEVE ser fornecida diretamente neste campo.
+        *   `chartOrImageSuggestion`: (OPCIONAL, MAS RECOMENDADO) Gere uma sugestão de diagrama visual em **sintaxe Mermaid** que poderia ilustrar os achados da seção. Ex: para um gráfico de pizza, `pie title Título do Gráfico \"Seção A\": 30 \"Seção B\": 70`; para um gráfico de barras, `xychart-beta title \"Variação da Tensão\" x-axis \"Tempo\" y-axis \"Tensão (V)\" bar [10, 12, 15, 11]`. **Consulte a documentação oficial do Mermaid.js em https://mermaid.js.org/intro/ para referência da sintaxe.** A sintaxe Mermaid DEVE ser fornecida diretamente neste campo.
         *   `chartUrl`: (OPCIONAL) Este campo será preenchido posteriormente com a URL de um gráfico gerado. Não preencha este campo.
 
 5.  finalConsiderations:
@@ -81,76 +81,47 @@ Importante:
 *   Garanta que a saída seja um JSON válido que corresponda ao schema `AnalyzeComplianceReportOutputSchema`.
 
 Retorne APENAS o objeto JSON do relatório. Não inclua nenhum texto explicativo antes ou depois do JSON.
-""",
-        ),
-        ("human", "{input}"),
-    ]
-)
-
-# Compliance Report Agent
-def compliance_report_agent(state):
-    """
-    Generate a technical compliance report based on ANEEL regulations.
-    """
-    print("---GENERATING COMPLIANCE REPORT---")
-    # Extract information from the state (assuming it's passed in the user message content)
-    # In a real application, this would be structured data passed in the state
-    # For this example, we'll parse from the last message
-    last_message_content = state['messages'][-1].content if state['messages'] else ""
-    # Assuming input format is a simple string for now, will need to be more structured
-    # to pass all required parameters (fileName, powerQualityDataSummary, etc.)
-    # For demonstration, let's assume the input string contains comma-separated values
-    # like "fileName,powerQualityDataSummary,identifiedRegulations,languageCode"
-    try:
-        fileName, powerQualityDataSummary, identifiedRegulations, languageCode = last_message_content.split(",", 3)
-    except ValueError:
-        print("---Error parsing input for compliance report agent---")
-        # Handle the error appropriately, maybe return an error message
-        return {"messages": [("assistant", "Error: Invalid input format for compliance report generation.")]}
-
-    # Create the chain
-    chain = (
-        RunnablePassthrough.assign(
-            input=lambda x: f"Generate the ANEEL compliance report using the following data:\nFile Name: {x['fileName']}\nSummary: {x['powerQualityDataSummary']}\nRegulations: {x['identifiedRegulations']}\nLanguage: {x['languageCode']}"
+"""
+                ),
+                ("human", "{input}"),
+            ]
         )
-        | compliance_report_prompt # Using Gemini 1.5 Flash as it's cost-effective and good for structured outputs.
-        | ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0)  # Use a suitable model
-        | JsonOutputParser()
-    )
 
-    # Invoke the chain with the extracted information
-    compliance_report_content = chain.invoke({
-        "fileName": fileName.strip(),
-        "powerQualityDataSummary": powerQualityDataSummary.strip(),
-        "identifiedRegulations": identifiedRegulations.strip(),
-        "languageCode": languageCode.strip()
-    })
+    def _define_llm(self) -> ChatGoogleGenerativeAI:
+        """Define the LLM for the Compliance Agent."""
+        return ChatGoogleGenerativeAI(
+            model=self.config.get_config("compliance_agent", 'model', 'gemini-1.5-flash-latest'),
+            temperature=self.config.get_config("compliance_agent", 'temperature', 0)
+        )
 
-    return {"messages": [("assistant", compliance_report_content)]}
+    def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process data to generate a compliance report."""
+        # Assuming input data is already in the format of ComplianceReportInput
+        self.logger.info("Running Compliance Agent")
 
+        try:
+            # Create the chain
+            chain = (
+                # The RunnablePassthrough is likely not needed if processing structured data directly
+                self.llm
+                # You might need a structured output parser here instead of JsonOutputParser
+                | JsonOutputParser() # Assuming output is always JSON
+                | self.output_parser
+            )
 
-### Define the graph ###
-workflow = StateGraph(AgentState)
+            # Assuming the chain expects a dictionary input
+            compliance_report_content = chain.invoke(data) # Pass the dictionary directly
+            return {"report": compliance_report_content} # Return as dictionary
 
-# Add the compliance report agent as a node
-workflow.add_node("compliance_report", compliance_report_agent)
+        except Exception as e:
+            self.logger.error(f"Error running Compliance Agent: {e}")
+            # You might want to define a specific error output model or structure
+            return {"report": {"error": f"Failed to generate compliance report: {e}"}} # Return error as dictionary
 
-# Add the initial entry point
-workflow.set_entry_point("compliance_report")
+    def _define_input_schema(self) -> type:
+        """Define the input schema for the Compliance Agent."""
+        return ComplianceReportInput
 
-# Add a conditional edge to decide where to go after the report
-# For this example, we'll just end the graph after the report is generated
-workflow.set_finish_point("compliance_report")
-
-# Compile the graph
-app = workflow.compile()
-
-if __name__ == "__main__":
-    # Example usage:
-    # Example input string: "fileName,powerQualityDataSummary,identifiedRegulations,languageCode"
-    example_input = "my_power_data.csv,Voltage is mostly within limits, but some dips observed. Frequency is stable. Harmonics are low.,Resolução Normativa nº 956/2021,PRODIST Módulo 8,pt-BR"
-
-    inputs = {"messages": [("user", example_input)]}
-
-    result = app.invoke(inputs)
-    print(result)
+    def _define_output_schema(self) -> type:
+        """Define the output schema for the Compliance Agent."""
+        return AnalyzeComplianceReportOutput

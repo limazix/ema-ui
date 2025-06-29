@@ -3,19 +3,17 @@
 """This is the main entry point for the Chainlit application."""
 
 import chainlit as cl
-from typing import List
+from typing import List, Dict, Any
+import json
 
-# Assuming this import path is correct after previous steps
-from agents import workflow
+# Import the compiled workflow from the new location
+from app.agent_workflow import workflow
 
 @cl.on_message
 async def on_message(msg: cl.Message):
-    """This function is called when a message is received from the client.
-
-    It sends a response back to the client with the received message content.
-
-    Args:
-        msg (cl.Message): The message received from the client.
+    """
+    This function is called when a message is received from the client.
+    It processes the user message using the LangGraph workflow.
 
     Returns:
         None
@@ -27,20 +25,20 @@ async def on_message(msg: cl.Message):
     uploaded_file = files[0]  # Assuming only one file upload at a time
     file_name = uploaded_file.name
 
-    # In a real application, you would parse the CSV and extract:
-    # powerQualityDataSummary, identifiedRegulations, and languageCode
-    # For this example, we'll use placeholder values.
-    # You would also need to handle potential errors during file processing.
-
     await cl.Message(content=f"Processing file: {file_name}...").send()
 
     # Prepare the initial state for the LangGraph workflow
     # Replace with actual data extraction logic
-    initial_state: StateDict = {
-        "fileName": file_name,
-        "powerQualityDataSummary": "Placeholder summary of power quality data from CSV.",
-        "identifiedRegulations": ["Resolução Normativa nº 956/2021", "PRODIST Módulo 8"],
-        "languageCode": "pt-BR", # Default language
+    # Note: The LangGraph AgentState expects a 'messages' key.
+    # We'll pass the file-related data within the initial message content for now,
+    # as a simplified way to get data into the graph.
+    # In a real application, the initial state structure might be different
+    # to better accommodate structured data.
+    initial_state: Dict[str, Any] = {
+        "messages": [("user", json.dumps({
+            "fileName": file_name,
+            "content": msg.content # Include user message content
+        }))],
         "report": None # Report will be populated by the agent
     }
 
@@ -49,13 +47,14 @@ async def on_message(msg: cl.Message):
 
     # Invoke the LangGraph workflow and stream the output
     async for chunk in workflow.astream(initial_state):
-        # The structure of chunk depends on your LangGraph definition
-        # You'll need to adapt this based on how your agent yields output
-        # For example, if your agent yields a dictionary with a 'report' key:
-        if "report" in chunk and chunk["report"] is not None:
-            # Assuming the report is the final JSON output
-            report_json = chunk["report"]
-            # You might want to format this JSON for better display
-            formatted_report = json.dumps(report_json, indent=2, ensure_ascii=False)
-            await msg.stream_token(f"{formatted_report}")
-    await cl.Message(content=f"Received: {message.content}").send()
+        # The structure of the chunk depends on how your agents update the state.
+        # If your agents add messages to the 'messages' list in the state,
+        # you can process them here.
+        if "messages" in chunk:
+            for message in chunk["messages"]:
+                # Check if the message is from the assistant and contains the report
+                if isinstance(message, tuple) and message[0] == "assistant" and isinstance(message[1], dict) and "report" in message[1]:
+                    formatted_report = json.dumps(message[1]["report"], indent=2, ensure_ascii=False)
+                    await msg.stream_token(f"{formatted_report}")
+                elif isinstance(message, tuple) and message[0] == "assistant":
+                    await msg.stream_token(f"{message[1]}")
