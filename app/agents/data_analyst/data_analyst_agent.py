@@ -15,11 +15,9 @@ class DataAnalystAgent(BaseAgent):
 
     def _define_prompt(self) -> ChatPromptTemplate:
         """Define the specific prompt for the Data Analyst agent."""
-        # Placeholder prompt
-        return ChatPromptTemplate.from_messages([
-            ("system", "You are a data analyst agent. Analyze the provided data."),
-            ("human", "{input}")
-        ])
+        prompt_template_str = self.config.get_config("data_analyst_agent", "prompt")
+        # Assuming the prompt from config is a system message. Adjust if using chat history.
+        return ChatPromptTemplate.from_messages([("system", prompt_template_str), ("human", "{powerQualityDataCsv}\\nOutput Language: {languageCode}")])
 
     def _define_llm(self):
         """Define the specific LLM model for the Data Analyst agent."""
@@ -37,12 +35,11 @@ class DataAnalystAgent(BaseAgent):
     def _create_chain(self):
         """Create the Langchain runnable chain for the Data Analyst agent."""
         # Placeholder chain - replace with actual chain implementation
-        chain = (
-            RunnablePassthrough.assign(
-                input=lambda x: x # Assuming input is directly in 'input' key for now
-            )
+        return (
+            # The input to the chain is a dictionary with 'powerQualityDataCsv' and 'languageCode'
+            RunnablePassthrough()
             | self.prompt
             | self.llm
-            # | JsonOutputParser() # Use appropriate parser based on self.output_schema
+            | RunnablePassthrough.assign(preparationReport=lambda x: x.content) # Assuming LLM output is in .content and is the report string
         )
-        return chain
+
