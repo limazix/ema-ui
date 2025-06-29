@@ -33,7 +33,7 @@ dev = [
 _.env_file = ".env"
 pre_commit = "git add -i"
 commit = "cz commit"
-serve = "chainlit run src/app.py -w"
+serve = "uvicorn app:api"
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.

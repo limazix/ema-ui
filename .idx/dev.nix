@@ -37,8 +37,7 @@
           manager = "web";
           env = {
             # Environment variables to set for your server
-            CHAINLIT_PORT = "$PORT";
-            DEFAULT_PORT = "$PORT";
+            UVICORN_PORT = "$PORT";
           };
         };
       };
