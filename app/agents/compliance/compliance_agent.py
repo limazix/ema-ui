@@ -1,3 +1,5 @@
+import os
+
 from typing import Dict, Any, Annotated, Sequence, TypedDict
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -30,7 +32,8 @@ class ComplianceAgent(BaseAgent):
         """Define the LLM for the Compliance Agent."""
         return ChatGoogleGenerativeAI(
             model=self.config.get_config("compliance_agent", 'model', 'gemini-1.5-flash-latest'),
-            temperature=self.config.get_config("compliance_agent", 'temperature', 0)
+            temperature=self.config.get_config("compliance_agent", 'temperature', 0),
+            api_key=os.getenv("GEMINI_API_KEY")
         )
 
     def _create_chain(self):

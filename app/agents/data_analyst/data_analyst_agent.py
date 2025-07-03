@@ -1,3 +1,5 @@
+import os
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -39,7 +41,8 @@ class DataAnalystAgent(BaseAgent):
         # Placeholder LLM - replace with actual LLM instance
         return ChatGoogleGenerativeAI(
             model=self.config.get_config("data_analyst_agent", 'model', 'gemini-1.5-flash-latest'),
-            temperature=self.config.get_config("data_analyst_agent", 'temperature', 0)
+            temperature=self.config.get_config("data_analyst_agent", 'temperature', 0),
+            api_key=os.getenv("GEMINI_API_KEY")
         )
 
     def _define_input_schema(self):
@@ -63,7 +66,7 @@ class DataAnalystAgent(BaseAgent):
     
     def process(self, input_data: DataAnalystInput) -> DataAnalystOutput:
         """Process the input data using the Data Analyst agent's chain."""
-        self.logger.log(f"Processing data with DataAnalystAgent: {input_data}", level=Logger.INFO)
+        self.logger.info(f"Processing data with DataAnalystAgent: {input_data}")
         
         # Create and invoke the chain with the input data
         chain = self._create_chain()
@@ -74,10 +77,13 @@ class DataAnalystAgent(BaseAgent):
 
     def invoke(self, state: AgentState) -> AgentState:
         """Invoke the Data Analyst agent to process the data."""
-        self.logger.log(f"Invoking DataAnalystAgent with state: {state}", level=Logger.INFO)
+        self.logger.info(f"Invoking DataAnalystAgent with state: {state}")
 
         # Extract necessary input data from the state
-        input_data = DataAnalystInput(powerQualityDataCsv=state.get("powerQualityDataCsv"), languageCode=state.get("languageCode"))
+        input_data = DataAnalystInput(
+            powerQualityDataCsv=state.get("powerQualityDataCsv"),
+            languageCode=state.get("languageCode")
+        )
 
         # Process the data using the process method
         agent_output = self.process(input_data)

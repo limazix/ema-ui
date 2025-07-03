@@ -29,3 +29,5 @@ workflow.add_edge("data_analyst", "compliance_report")
 
 # Set the point(s) where the graph execution should finish, e.g.:
 workflow.set_finish_point("compliance_report") # type: ignore
+
+graph = workflow.compile()
