@@ -27,4 +27,4 @@ COPY app ./app
 
 EXPOSE 8000
 
-ENTRYPOINT ["uvcorn", "app:api", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["uvicorn", "app:api", "--host", "0.0.0.0", "--port", "8000"]
