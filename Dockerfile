@@ -5,7 +5,7 @@ FROM python:$PYTHON_BASE AS builder
 RUN pip install -U pdm
 ENV PDM_CHECK_UPDATE=false
 
-WORKDIR /usr/src/app
+WORKDIR /usr/src/application
 
 COPY pyproject.toml ./
 COPY pdm.lock ./
@@ -15,12 +15,12 @@ RUN pdm run chainlit init
 
 FROM python:$PYTHON_BASE
 
-WORKDIR /usr/src/app
+WORKDIR /usr/src/application
 
-COPY --from=builder /usr/src/app/.venv/ ./.venv
-COPY --from=builder /usr/src/app/.chainlit/ ./.chainlit
+COPY --from=builder /usr/src/application/.venv/ ./.venv
+COPY --from=builder /usr/src/application/.chainlit/ ./.chainlit
 
-ENV VIRTUALENV "/usr/src/app/.venv"
+ENV VIRTUALENV "/usr/src/application/.venv"
 ENV PATH "$VIRTUALENV/bin:$PATH"
 
 COPY app ./app
