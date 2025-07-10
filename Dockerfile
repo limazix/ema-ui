@@ -23,8 +23,8 @@ COPY --from=builder /usr/src/app/.chainlit/ ./.chainlit
 ENV VIRTUALENV "/usr/src/app/.venv"
 ENV PATH "$VIRTUALENV/bin:$PATH"
 
-COPY src ./src
+COPY app ./app
 
 EXPOSE 8000
 
-CMD ["chainlit", "run", "--host", "0.0.0.0", "./src/app.py", "-w"]
+CMD ["uvcorn", "app:api", "--host", "0.0.0.0", "--port", "8000"]

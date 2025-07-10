@@ -8,9 +8,9 @@ import os
 
 from google.adk.agents import LlmAgent
 
-from .data_scientist_agent import data_scientst_agent
-from .electric_engineer_agent import electric_engineer_agent
-from .reviewer_agent import reviewer_agent
+from .sub_agents.data_scientist_agent import data_scientst_agent
+from .sub_agents.electric_engineer_agent import electric_engineer_agent
+from .sub_agents.reviewer_agent import reviewer_agent
 
 coordinator = LlmAgent(
     name="CoordinatorAgent",
