@@ -28,11 +28,11 @@ from uuid import uuid4
 
 import chainlit as cl
 from chainlit.server import app
-from google.adk.runner import Runner
-from google.adk.sessions import DatabaseSessionService
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from app.agents.coordinator_agent import coordinator
+from app.agents import coordinator
 from app.utils.logger import Logger
 
 logger = Logger(__name__)
@@ -52,7 +52,7 @@ async def create_session(user_id: str):
         Exception: If the session cannot be created.
     """
     try:
-        session_service: DatabaseSessionService = app.state.session_service
+        session_service: InMemorySessionService = app.state.session_service
         logger.info(f"Session created: {cl.context.session.id}")
         return await session_service.create_session(user_id=user_id, session_id=cl.context.session.id)
     except Exception as e:
@@ -70,7 +70,7 @@ async def get_agent_session(user_id: str, session_id: str):
     """
     current_session = None
     try:
-        session_service: DatabaseSessionService = app.state.session_service
+        session_service: InMemorySessionService = app.state.session_service
         current_session = await session_service.get_session(user_id=user_id, session_id=session_id)
     except AttributeError:
         logger.error("Session service not initialized.")
