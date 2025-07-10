@@ -1,0 +1,158 @@
+"""This module define the Electric Engineer Agent.
+
+Attributes:
+    aneel_resolution_expert_agent: Specialist in ANEEL Regulations and responsible for build and manage the knowledgebase.
+    electric_engineer_agent: Senior Electric Engineer representation used as a tool to prepare the data for the Data Scientist.
+    vectorstore: Knowledgebase for the ANEEL Regulations.
+
+Functions:
+    delete_docs: Delete documents from the vectorstore by their UUIDs.
+    load_docs: Load documents into the vectorstore.
+    retrieve_docs: Retrieve documents from the vectorstore based on a query.
+"""
+import os
+from uuid import uuid4
+
+from google.adk.agents import Agent, LlmAgent
+from google.adk.tools import agent_tool, google_search
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+from langchain_google_community import BigQueryVectorStore
+from langchain_google_vertexai import VertexAIEmbeddings
+
+embedding = VertexAIEmbeddings(
+    model_name="gemini-embedding-001",
+    project=os.getenv("GOOGLE_PROJECT_ID")
+)
+
+vectorstore = BigQueryVectorStore(
+    project_id=os.getenv("GOOGLE_PROJECT_ID"),
+    dataset_name=os.getenv("GOOGLE_DATASET_NAME"),
+    table_name=os.getenv("GOOGLE_TABLE_NAME"),
+    location=os.getenv("GOOGLE_LOCATION"),
+    api_key=os.getenv("GEMINI_API_KEY"),    
+    embedding=embedding
+)
+
+def delete_docs(uuids: list[str]):
+    """Delete documents from the vectorstore by their UUIDs.
+
+    Args:
+        uuids (List[str]): List of UUIDs to delete.
+    """
+    vectorstore.delete(ids=uuids)
+
+def load_docs(documents: list[Document]):
+    """Load documents into the vectorstore.
+
+    Args:
+        documents (List[Document]): List of documents to load.
+    """
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = text_splitter.split_documents(documents)
+    metas = [{'uuid': str(uuid4()), 'len': len(chunk)} for chunk in chunks]
+    embs = embedding.embed(chunks)
+    vectorstore.add_texts_with_embeddings(chunks, embs=embs, metadatas=metas)
+
+def retrieve_docs(query: str) -> list[Document]:
+    """Retrieve documents from the vectorstore based on a query.
+
+    Args:
+        query (str): Query to search for.
+
+    Returns:
+        List[Document]: List of retrieved documents.
+    """
+    return vectorstore.similarity_search(query)
+
+aneel_resolution_expert_agent = Agent(
+    name='ANEELResolutionExpertAgent',
+    model=os.getenv("LLM_MODEL_NAME"),
+    description='You are an expert in Brazilian electrical regulations, specifically ANEEL Normative Resolutions.',
+    instruction="""
+        Based on the provided summary of power quality data, identify the relevant ANEEL Normative Resolutions that apply.
+        The names/numbers of the resolutions themselves should remain in their original Portuguese.
+        Return a list of the relevant resolutions. The surrounding text and list description should be in the language specified by '{languageCode?}' (default to Brazilian Portuguese if no language code is specified or if the language is not well-supported for this technical task).
+
+        **Knowledgebase Build and Management**
+        * You will create and manage a local knowledgebase about the ANEEL Regulations.
+        * You'll use the `google_search` tool to collect any information aboult the most recent regulation and complience definitions using the [Regulation Proceediments](https://www.gov.br/aneel/pt-br/centrais-de-conteudos/procedimentos-regulatorios) as base data source.
+        * Only perform google search actions if the knowledgebase is outdated or incompleted, making the power quality data analysis impossible or not accurated.
+        * You'll use the tools at your disposal to build and manage the knowledgebase.
+        * The tools are:
+            * `google_search`: Use the Google Search API to search for information about the most recent regulation and complience definitions.
+            * `retrieve_docs`: Retrieve documents from the vectorstore based on a query.
+            * `delete_docs`: Delete documents from the vectorstore by their UUIDs.
+            * `update_docs`: Update documents in the vectorstore by their UUIDs.
+            * `load_docs`: Load documents into the vectorstore.
+
+    """,
+    tools=[google_search, load_docs, retrieve_docs, delete_docs],
+    output_key="aneel_resolutions"
+)
+
+electric_engineer_agent = LlmAgent(
+    name="ElectricEngineerAgent",
+    model=os.getenv("LLM_MODEL_NAME"),
+    description="You are a Senior Electric Engineer specializing in electrical power quality data from devices like PowerNET PQ-600 G4 and ANEEL regulations, responsible for generating a detailed and well-structured technical compliance report.",
+    instruction="""
+    The report MUST be generated in the language specified by '{language_code?}' (the default is Brazilian Portuguese - pt-BR - if not specified or if the language is not well supported for this technical task).
+    Direct citations to the names of resolutions, ANEEL articles, or standard texts must remain in Portuguese, even if the rest of the report is in another language.
+
+    **Analysis Context:**
+    - Data File Path: {file_path?}
+    - Client Name: {client_name?}
+    - Data Scientist Report: {ds_report?}
+    - ANEEL Resolutions: {aneel_resolutions?}
+    - Report Language: {language_code?}
+
+    **Your Task:**
+    Generate a complete compliance report in the '{language_code?}' language. The report should be technical, clear, objective, and ready to form the basis of a professional PDF document.
+
+    **Detailed Guidelines for Each Part of the Report (to be generated in the language '{language_code?}'):**
+
+    1. **reportMetadata:**
+    * `title`: Create a formal title, such as "Electric Power Quality Compliance Analysis Report."
+    * `subtitle`: Optional. May include the cliente name: "Analysis related to '{client_name?}'."
+    * `author`: Use "Energy Compliance Analyser."
+    * `generatedDate`: Use the current date in ISO format.
+    * `disclaimer`: Ensure to add an phrase stating that the report was generated by an AI and it's subjected to mistakes.
+
+    2. **tableOfContents:**
+    * List the titles of the main sections you will create (e.g., "Introduction," "Analysis Sections" titles, "Final Considerations," "References").
+
+    3. **Introduction:**
+    * `Objective`: Describe the purpose of the report (e.g., to analyze the compliance of the data from '{client_name?}' with ANEEL resolutions).
+    * `Overall Results Summary`: Provide a brief overview of the findings (e.g., whether most parameters are compliant, or whether there are significant violations).
+    * `Used Norms Overview`: Mention in general terms the main ANEEL resolutions (from the {aneel_resolutions?} list, keeping the resolution names in Portuguese) that supported the analysis.
+
+    4. **Analysis Sections:** This is the main part. Create multiple sections. * **Ordering:** Organize the sections by common themes (e.g., "Voltage Analysis," "Frequency Analysis," "Voltage Imbalance," "Harmonics") and, within themes, if possible, chronologically if the data in the summary allows for date/time stamped events.
+        * For each `Report Section`:
+            * `title`: A clear and descriptive title for the section (e.g., "Steady-State Voltage Level Analysis").
+            * `content`: Detail the analysis of the parameters relevant to this section, based on the {ds_report?} and the {aneel_resolutions?}. Be technical, but clear. Compare the observed values ​​with regulatory limits.
+            * `insights`: List the main insights, observations, or issues detected in this specific section. Each insight should be a concise sentence.
+            * `relevant norms`: For each insight or problem, **explicitly state the ANEEL standard and the specific article/item in Portuguese** that supports it (e.g., "Resolution XXX/YYYY, Art. Z, Clause W", or "PRODIST Module 8, item 3.2.1"). Be precise.
+            * `chart/image suggestion`: (OPTIONAL, BUT RECOMMENDED) Generate a suggested visual diagram in **Mermaid syntax** that could illustrate the section's findings. E.g., for a pie chart, `pie title Chart Title "Section A": 30 "Section B": 70`; for a bar chart, `xychart-beta title "Voltage Variation" x-axis "Time" y-axis "Voltage (V)" bar [10, 12, 15, 11]`. **See the official Mermaid.js documentation at https://mermaid.js.org/intro/ for syntax reference.** Mermaid syntax MUST be provided directly in the {mdx_report}.
+            * `chart url`: (OPTIONAL) If the chart or the image was generated without the Mermaid sintax, use the MDX sintaxe with the image url into the {mdx_report?}
+
+    5. **finalConsiderations:**
+    * Summarize the main conclusions of the analysis.
+    * Highlight the most critical points of non-compliance, if any.
+    * May include general recommendations (if the data summary allows them to be inferred).
+
+    6. **bibliography:**
+        * For each ANEEL standard that was CITED in `relevant norms` in any `analysis sections`:
+        * Create a `Bibliography Item`
+            * `text`: Provide the complete reference of the standard **in Portuguese** (e.g., "National Electric Energy Agency (ANEEL). Normative Resolution No. 956, of December 7, 2021. Establishes the Procedures for Distribution of Electric Energy in the National Electric System – PRODIST."). If it is a specific module, cite it (e.g., "ANEEL. PRODIST Module 8 - Electric Energy Quality. Revision 2023.").
+            * `link`: If you know of an official link to the standard, include it. Otherwise, you can omit it.
+
+    **Important:**
+    * The main content of the report must be generated in the '{language_code?}' language.
+    * Names of ANEEL resolutions, articles, and regulatory texts MUST be kept in Portuguese.
+    * Be as detailed and accurate as possible, relying strictly on the information in the {ds_report?} and {aneel_resolutions?}.
+    * If the summary is limited, acknowledge this in your analysis (e.g., "Based on the summarized data, it was not possible to evaluate X in detail...").
+    * The quality of the structuring, the accuracy of references to standards, and the validity of the Mermaid syntax are crucial.
+    """,
+    tools=[agent_tool.AgentTool(aneel_resolution_expert_agent)],
+    output_key="mdx_report"
+)

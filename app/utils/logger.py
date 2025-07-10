@@ -1,6 +1,8 @@
-import logging
 import inspect
+import logging
+
 from app.utils.config_handler import ConfigHandler
+
 
 class Logger:
     def __init__(self, name=None):
