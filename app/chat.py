@@ -29,9 +29,11 @@ import chainlit as cl
 from google.adk.runners import Runner
 from google.genai import types
 
-# Import the 'api' object directly from app
 from app import api
 from app.agents import coordinator
+
+# Import the 'api' object directly from app
+from app.utils.firebase_artifact_service import FirebaseArtifactService
 from app.utils.logger import Logger
 
 logger = Logger(__name__)
@@ -95,6 +97,11 @@ async def get_agent_runner(user_id: str):
     )
 
     agent_runner = Runner(
+        # Instantiate FirebaseArtifactService and pass it to the runner
+        artifact_service=FirebaseArtifactService(
+            bucket_name=os.getenv("FIREBASE_STORAGE_BUCKET")
+        ),
+        # Pass the session service instance
         app_name=os.getenv("APP_NAME"),
         agent=coordinator,
         session_service=session_service,
