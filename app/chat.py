@@ -26,10 +26,11 @@ import os
 from typing import Optional
 
 import chainlit as cl
-from chainlit.server import app
 from google.adk.runners import Runner
 from google.genai import types
 
+# Import the 'api' object directly from app
+from app import api
 from app.agents import coordinator
 from app.utils.logger import Logger
 
@@ -40,7 +41,7 @@ async def create_session(user_id: str):
 
     Args:
         user_id (str): The user id.
-    
+
     Returns:
         Session: The new session.
 
@@ -48,7 +49,8 @@ async def create_session(user_id: str):
         Exception: If the session cannot be created.
     """
     try:
-        session_service = app.state.session_service
+        # Use the imported 'api' object to access the session service
+        session_service = api.state.session_service
         logger.info(f"Session created: {cl.context.session.id}")
         return await session_service.create_session(user_id=user_id, session_id=cl.context.session.id)
     except Exception as e:
@@ -60,30 +62,33 @@ async def get_agent_session(user_id: str, session_id: str):
     Args:
         user_id (str): The user id.
         session_id (str): The session id.
-    
+
     Returns:
         Session: The agent session.
     """
     current_session = None
     try:
-        session_service = app.state.session_service
+        # Use the imported 'api' object to access the session service
+        session_service = api.state.session_service
         current_session = await session_service.get_session(user_id=user_id, session_id=session_id)
     except AttributeError:
         logger.error("Session service not initialized.")
-        
+
     if not current_session:
         return await create_session(user_id=user_id)
+
 
 async def get_agent_runner(user_id: str):
     """Method use to get the agent runner.
 
     Args:
         user_id (str): The user id.
-    
+
     Returns:
         Runner: The agent runner.
     """
-    session_service = app.state.session_service
+    # Use the imported 'api' object to access the session service
+    session_service = api.state.session_service
     agent_session = await get_agent_session(
         user_id=user_id,
         session_id=cl.context.session.id
@@ -112,7 +117,7 @@ def oauth_callback(
         token (str): The token.
         raw_user_data (dict[str, str]): The raw user data.
         default_user (cl.User): The default user.
-    
+
     Returns:
         Optional[cl.User]: The user.
     """
@@ -131,7 +136,7 @@ async def on_message(message: cl.Message):
     content = types.Content(role="user", parts=[types.Part(text=message.content)])
     if message.elements:
         content.parts.append(types.Part(text=f"\n arquivo anexado: {message.elements[0]}"))
-    
+
     agent_runner = await get_agent_runner(user_id=user_id)
 
     async for event in agent_runner.run_async(user_id=user_id, new_message=content, session_id=cl.context.session.id):
