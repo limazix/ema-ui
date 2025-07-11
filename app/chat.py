@@ -24,7 +24,6 @@ Variables:
 """
 import os
 from typing import Optional
-from uuid import uuid4
 
 import chainlit as cl
 from chainlit.server import app
@@ -36,8 +35,6 @@ from app.agents import coordinator
 from app.utils.logger import Logger
 
 logger = Logger(__name__)
-
-default_user_id = str(uuid4())
 
 async def create_session(user_id: str):
     """Method use to create a new session.
@@ -130,7 +127,7 @@ async def on_message(message: cl.Message):
         message (cl.Message): The message from the user.
     """
     user = cl.user_session.get('user')
-    user_id = default_user_id if not user else user.id
+    user_id = user.identifier
 
     if message.elements:
         message.content += f"\n arquivo anexado: {message.elements[0]}"
