@@ -55,8 +55,6 @@ async def lifespan(api: FastAPI):
     
     yield
     logger.info("Application shutting down...")
-    await api.state.session_service.close()
-    logger.info("Database session service closed successfully.")
     logger.info("Application shut down successfully.")
 
 api: FastAPI = get_fast_api_app(

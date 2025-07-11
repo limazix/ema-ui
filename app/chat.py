@@ -120,8 +120,6 @@ def oauth_callback(
     Returns:
         Optional[cl.User]: The user.
     """
-    cl.user_session.set('user', default_user)
-    logger.info(f"User: {default_user}")
     return default_user
 
 @cl.on_message
