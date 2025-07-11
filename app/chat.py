@@ -28,7 +28,6 @@ from typing import Optional
 import chainlit as cl
 from chainlit.server import app
 from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from app.agents import coordinator
@@ -49,7 +48,7 @@ async def create_session(user_id: str):
         Exception: If the session cannot be created.
     """
     try:
-        session_service: InMemorySessionService = app.state.session_service
+        session_service = app.state.session_service
         logger.info(f"Session created: {cl.context.session.id}")
         return await session_service.create_session(user_id=user_id, session_id=cl.context.session.id)
     except Exception as e:
@@ -67,7 +66,7 @@ async def get_agent_session(user_id: str, session_id: str):
     """
     current_session = None
     try:
-        session_service: InMemorySessionService = app.state.session_service
+        session_service = app.state.session_service
         current_session = await session_service.get_session(user_id=user_id, session_id=session_id)
     except AttributeError:
         logger.error("Session service not initialized.")
@@ -129,11 +128,9 @@ async def on_message(message: cl.Message):
     user = cl.user_session.get('user')
     user_id = user.identifier
 
-    if message.elements:
-        message.content += f"\n arquivo anexado: {message.elements[0]}"
-        logger.info(f"Arquivo anexado: {message.elements[0]}")
-
     content = types.Content(role="user", parts=[types.Part(text=message.content)])
+    if message.elements:
+        content.parts.append(types.Part(text=f"\n arquivo anexado: {message.elements[0]}"))
     
     agent_runner = await get_agent_runner(user_id=user_id)
 
@@ -143,3 +140,11 @@ async def on_message(message: cl.Message):
         elif event.is_error():
             logger.error(f"Error: {event.error_details}")
             await cl.Message(content=f"Error: {event.error_details}").send()
+
+    # Check if the agent state contains the mdx_report
+    if hasattr(agent_runner.session, 'state') and 'mdx_report' in agent_runner.session.state:
+        mdx_report = agent_runner.session.state['mdx_report']
+        if mdx_report:
+            # Display the mdx_report as a Chainlit Text element
+            await cl.Message(content="Here is the generated report:").send()
+            await cl.Text(content=mdx_report, name="Generated Report", display="side").send()
