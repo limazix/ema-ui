@@ -23,15 +23,18 @@ Variables:
     - get_fast_api_app: Gets the FastAPI application.
     - InMemorySessionService: In-memory session service.
 """
+import json
 import os
 from contextlib import asynccontextmanager
 
+import firebase_admin
 from chainlit.utils import mount_chainlit
 from fastapi import FastAPI
+from firebase_admin import credentials, firestore
 from google.adk.cli.fast_api import get_fast_api_app
-from google.adk.sessions import InMemorySessionService
 
 from .agents import coordinator
+from .utils.firebase_session_service import FirebaseSessionService
 from .utils.logger import Logger
 
 logger = Logger(__name__)
@@ -48,8 +51,16 @@ async def lifespan(api: FastAPI):
     """
     logger.info("Initializing application...")
     try:
-        api.state.session_service = InMemorySessionService()
-        logger.info("Database session service initialized successfully.")
+        # Initialize Firebase Admin SDK
+        firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS")
+        if not firebase_credentials_json:
+            raise ValueError("FIREBASE_CREDENTIALS environment variable not set.")
+        
+        cred_dict = json.loads(firebase_credentials_json)
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+        api.state.session_service = FirebaseSessionService(firestore.client())
+        logger.info("Firebase initialized and session service placeholder set.")
     except Exception as e:
         logger.error(f"Database session service initialized failed: {e}")
     
@@ -58,7 +69,7 @@ async def lifespan(api: FastAPI):
     logger.info("Application shut down successfully.")
 
 api: FastAPI = get_fast_api_app(
-    agents_dir=AGENTS_BASE_DIR, 
+    agents_dir=AGENTS_BASE_DIR,
     allow_origins=["*"],
     lifespan=lifespan,
     trace_to_cloud=True,
