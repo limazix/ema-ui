@@ -1,0 +1,30 @@
+firestore
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Match any document in the 'sessions' collection
+    match /sessions/{sessionId} {
+      // Allow read access to any session document if the user is authenticated
+      // and the document ID starts with their user ID.
+      allow read: if request.auth != null && sessionId.startsWith(request.auth.uid + ':');
+
+      // Allow create, update, and delete access to a session document
+      // only if the user is authenticated and the document ID exactly matches
+      // their user ID and the session ID from the request.
+      // This prevents users from creating/modifying sessions for other users.
+      allow create, update, delete: if request.auth != null && sessionId == request.auth.uid + ':' + request.resource.id.split(':')[1];
+
+      // Match any document in the 'events' subcollection within a session document
+      match /events/{eventId} {
+        // Allow read access to event documents if the user is authenticated
+        // and the parent session document ID starts with their user ID.
+        allow read: if request.auth != null && get(/databases/$(database)/documents/sessions/$(sessionId)).id.startsWith(request.auth.uid + ':');
+
+        // Allow create, update, and delete access to event documents
+        // only if the user is authenticated and the parent session document ID
+        // starts with their user ID.
+        allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/sessions/$(sessionId)).id.startsWith(request.auth.uid + ':');
+      }
+    }
+  }
+}
