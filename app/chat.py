@@ -29,7 +29,6 @@ import chainlit as cl
 from google.adk.runners import Runner
 from google.genai import types
 
-from app import api
 from app.agents import coordinator
 
 # Import the 'api' object directly from app
@@ -90,8 +89,7 @@ async def get_agent_runner(user_id: str):
     Returns:
         Runner: The agent runner.
     """
-    # Use the imported 'api' object to access the session service
-    session_service = api.state.session_service
+    session_service = FirebaseSessionService()
     agent_session = await get_agent_session(
         user_id=user_id,
         session_id=cl.context.session.id
