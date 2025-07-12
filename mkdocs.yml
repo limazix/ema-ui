@@ -1,6 +1,7 @@
 site_name: EMA UI Documentation
 theme:
   name: material
+docs_dir: .
 
 plugins:
   - mkdocstrings:
