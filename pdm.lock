@@ -5,7 +5,7 @@
 groups = ["default", "docs"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:679fca8aa14652d2d2d1918dd01b79d3c10cc1442867011411dd8826a2f7493d"
+content_hash = "sha256:07e11c5401742e3422d9d3b46ae59caa740f472c2a21d52e4fe25612a69262ee"
 
 [[package]]
 name = "aiofiles"
@@ -1161,6 +1161,20 @@ files = [
 ]
 
 [[package]]
+name = "griffe"
+version = "1.7.3"
+requires_python = ">=3.9"
+summary = "Signatures for entire Python programs. Extract the structure, the frame, the skeleton of your project, to generate API documentation or find breaking changes in your API."
+groups = ["docs"]
+dependencies = [
+    "colorama>=0.4",
+]
+files = [
+    {file = "griffe-1.7.3-py3-none-any.whl", hash = "sha256:c6b3ee30c2f0f17f30bcdef5068d6ab7a2a4f1b8bf1a3e74b56fffd21e1c5f75"},
+    {file = "griffe-1.7.3.tar.gz", hash = "sha256:52ee893c6a3a968b639ace8015bec9d36594961e156e23315c8e8e51401fa50b"},
+]
+
+[[package]]
 name = "grpc-google-iam-v1"
 version = "0.14.2"
 requires_python = ">=3.7"
@@ -1877,6 +1891,22 @@ dependencies = [
 files = [
     {file = "mkdocstrings-0.29.1-py3-none-any.whl", hash = "sha256:37a9736134934eea89cbd055a513d40a020d87dfcae9e3052c2a6b8cd4af09b6"},
     {file = "mkdocstrings-0.29.1.tar.gz", hash = "sha256:8722f8f8c5cd75da56671e0a0c1bbed1df9946c0cef74794d6141b34011abd42"},
+]
+
+[[package]]
+name = "mkdocstrings-python"
+version = "1.16.12"
+requires_python = ">=3.9"
+summary = "A Python handler for mkdocstrings."
+groups = ["docs"]
+dependencies = [
+    "griffe>=1.6.2",
+    "mkdocs-autorefs>=1.4",
+    "mkdocstrings>=0.28.3",
+]
+files = [
+    {file = "mkdocstrings_python-1.16.12-py3-none-any.whl", hash = "sha256:22ded3a63b3d823d57457a70ff9860d5a4de9e8b1e482876fc9baabaf6f5f374"},
+    {file = "mkdocstrings_python-1.16.12.tar.gz", hash = "sha256:9b9eaa066e0024342d433e332a41095c4e429937024945fea511afe58f63175d"},
 ]
 
 [[package]]
