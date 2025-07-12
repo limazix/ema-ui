@@ -5,7 +5,8 @@ Classes:
 """
 import firebase_admin
 from firebase_admin import credentials, firestore
-from google.adk.sessions import BaseSessionService, SessionEvent
+from google.adk.events import Event
+from google.adk.sessions import BaseSessionService
 from google.cloud.firestore_v1.base_document import DocumentSnapshot
 
 from app.utils.logger import Logger
@@ -122,7 +123,7 @@ class FirebaseSessionService(BaseSessionService):
             return None
         return self.db.collection(self.collection_name).document(f"{user_id}:{session_id}")
 
-    async def append_event(self, user_id: str, session_id: str, event: SessionEvent):
+    async def append_event(self, user_id: str, session_id: str, event: Event):
         """Appends a session event.
 
         Args:
@@ -139,7 +140,7 @@ class FirebaseSessionService(BaseSessionService):
             if session_doc_ref:
                 events_collection_ref = session_doc_ref.collection("events")
                 # You might want to add a timestamp or a unique ID to the event data
-                event_data = event.model_dump() # Assuming SessionEvent is a Pydantic model
+                event_data = event.model_dump() # Assuming Event is a Pydantic model
                 await events_collection_ref.add(event_data)
                 self.logger.info(f"Event appended to session '{session_id}'.")
             else:
@@ -148,11 +149,11 @@ class FirebaseSessionService(BaseSessionService):
             self.logger.error(f"Error appending event to session '{session_id}': {e}")
             raise # Re-raise the exception to be handled by the caller
 
-    async def list_events(self, user_id: str, session_id: str) -> list[SessionEvent]:
+    async def list_events(self, user_id: str, session_id: str) -> list[Event]:
         """Lists session events.
 
         Returns:
-            A list of SessionEvent objects.
+            A list of Event objects.
         """
         if not self.db:
             self.logger.error("Firestore not initialized. Cannot list events.")
@@ -163,8 +164,8 @@ class FirebaseSessionService(BaseSessionService):
             if session_doc_ref:
                 events_collection_ref = session_doc_ref.collection("events")
                 events_docs = await events_collection_ref.get()
-                # Convert Firestore documents to SessionEvent objects
-                session_events = [SessionEvent(**doc.to_dict()) for doc in events_docs]
+                # Convert Firestore documents to Event objects
+                session_events = [Event(**doc.to_dict()) for doc in events_docs]
                 self.logger.info(f"Listed {len(session_events)} events for session '{session_id}'.")
                 return session_events
             else:
