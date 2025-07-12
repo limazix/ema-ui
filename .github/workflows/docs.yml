@@ -18,10 +18,15 @@ jobs:
         with:
           python-version: '3.11' # Use a recent Python version or get it from .python-version
 
-      - name: Install PDM
+      - name: Install pipx
         run: |
-          curl -sSL https://pdm.filippo.io/install-pdm.py | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install -y pipx
+          pipx ensurepath
+
+      - name: Install PDM using pipx
+        run: |
+          pipx install pdm
 
       - name: Install dependencies
         run: pdm install --no-self --group docs
