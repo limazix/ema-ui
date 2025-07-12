@@ -34,6 +34,7 @@ from app.agents import coordinator
 
 # Import the 'api' object directly from app
 from app.utils.firebase_artifact_service import FirebaseArtifactService
+from app.utils.firebase_session_service import FirebaseSessionService
 from app.utils.logger import Logger
 
 logger = Logger(__name__)
@@ -52,7 +53,7 @@ async def create_session(user_id: str):
     """
     try:
         # Use the imported 'api' object to access the session service
-        session_service = api.state.session_service
+        session_service = FirebaseSessionService()
         logger.info(f"Session created: {cl.context.session.id}")
         return await session_service.create_session(user_id=user_id, session_id=cl.context.session.id)
     except Exception as e:
@@ -71,7 +72,7 @@ async def get_agent_session(user_id: str, session_id: str):
     current_session = None
     try:
         # Use the imported 'api' object to access the session service
-        session_service = api.state.session_service
+        session_service = FirebaseSessionService()
         current_session = await session_service.get_session(user_id=user_id, session_id=session_id)
     except AttributeError:
         logger.error("Session service not initialized.")
