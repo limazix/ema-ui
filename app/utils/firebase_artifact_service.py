@@ -7,10 +7,12 @@ Classes:
 """
 import os
 import uuid
+from typing import Optional
 
 import firebase_admin
 from firebase_admin import credentials, storage
-from google.adk.artifacts import Artifact, BaseArtifactService
+from google.adk.artifacts import BaseArtifactService
+from google.genai.types import Part
 
 from app.utils.logger import Logger
 
@@ -36,7 +38,7 @@ class FirebaseArtifactService(BaseArtifactService):
             self.logger.error(f"Error initializing Firebase Storage: {e}")
             self.bucket = None
 
-    async def save_artifact(self, artifact: Artifact, user_id: str, session_id: str, artifact_key: str | None = None) -> str:
+    async def save_artifact(self, artifact: Optional[Part], user_id: str, session_id: str, artifact_key: str | None = None) -> str:
         """Saves an artifact to Firebase Storage.
 
         Args:
@@ -73,7 +75,7 @@ class FirebaseArtifactService(BaseArtifactService):
             self.logger.error(f"Error saving artifact with key '{artifact_key}': {e}")
             raise # Re-raise the exception
 
-    async def load_artifact(self, user_id: str, session_id: str, artifact_key: str, version: str | None = None) -> Artifact:
+    async def load_artifact(self, user_id: str, session_id: str, artifact_key: str, version: str | None = None) -> Optional[Part]:
         """Loads an artifact from Firebase Storage.
 
         Args:
@@ -104,7 +106,7 @@ class FirebaseArtifactService(BaseArtifactService):
         artifacts = await self._list_artifacts_internal(user_id, session_id)
         return [artifact.id for artifact in artifacts if artifact.id]
 
-    async def upload_artifact(self, artifact: Artifact, user_id: str, session_id: str) -> str:
+    async def upload_artifact(self, artifact: Optional[Part], user_id: str, session_id: str) -> str:
         """Uploads an artifact to Firebase Storage.
 
         Args:
@@ -136,7 +138,7 @@ class FirebaseArtifactService(BaseArtifactService):
             self.logger.error(f"Error uploading artifact '{artifact.id}': {e}")
             raise # Re-raise the exception
 
-    async def download_artifact(self, artifact_id: str, user_id: str, session_id: str) -> Artifact:
+    async def download_artifact(self, artifact_id: str, user_id: str, session_id: str) -> Optional[Part]:
         """Downloads an artifact from Firebase Storage.
 
         Args:
@@ -169,14 +171,14 @@ class FirebaseArtifactService(BaseArtifactService):
             mime_type = blob.content_type or "application/octet-stream"
 
             self.logger.info(f"Artifact '{artifact_id}' downloaded successfully from '{blob_name}'.")
-            return Artifact(id=artifact_id, data=artifact_data, mime_type=mime_type)
+            return Part(data=artifact_data, mime_type=mime_type, id=artifact_id)
         except FileNotFoundError:
             raise
         except Exception as e:
             self.logger.error(f"Error downloading artifact '{artifact_id}': {e}")
             raise # Re-raise the exception
 
-    async def list_artifacts(self, user_id: str, session_id: str) -> list[Artifact]:
+    async def list_artifacts(self, user_id: str, session_id: str) -> list[Optional[Part]]:
         """Lists artifacts for a session in Firebase Storage.
 
         Args:
@@ -190,7 +192,7 @@ class FirebaseArtifactService(BaseArtifactService):
         # Keeping it for potential utility or if it was intended to be implemented.
         return await self._list_artifacts_internal(user_id, session_id)
 
-    async def _list_artifacts_internal(self, user_id: str, session_id: str) -> list[Artifact]:
+    async def _list_artifacts_internal(self, user_id: str, session_id: str) -> list[Optional[Part]]:
         """Lists artifacts for a session in Firebase Storage.
 
         Args:
@@ -209,13 +211,14 @@ class FirebaseArtifactService(BaseArtifactService):
             prefix = f"artifacts/{user_id}/{session_id}/"
             blobs = self.bucket.list_blobs(prefix=prefix)
 
-            artifacts: list[Artifact] = []
+            artifacts: list[Optional[Part]] = []
             for blob in blobs:
                 # Extract artifact ID from blob name
                 artifact_id = os.path.basename(blob.name)
                 # We can't download the full data here for performance, so create Artifacts with basic info
                 # You might need to modify this based on how Artifact is used by the ADK
-                artifacts.append(Artifact(id=artifact_id, data=None, mime_type=blob.content_type))
+                blob_data = blob.download_as_text()
+                artifacts.append(Part(id=artifact_id, data=blob_data, mime_type=blob.content_type))
 
             self.logger.info(f"Listed {len(artifacts)} artifacts for session '{session_id}'.")
             return artifacts
